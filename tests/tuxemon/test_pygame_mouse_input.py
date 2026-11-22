@@ -115,6 +115,26 @@ def test_gpu_upscaler_converts_window_position(
     assert mouse_input.buttons[buttons.MOUSELEFT].value == (384, 216)
 
 
+def test_gpu_upscaler_ignores_clicks_on_borders(
+    mouse_input: PygameMouseInput, monkeypatch: pytest.MonkeyPatch
+):
+    from dataclasses import replace
+
+    from tuxemon import prepare
+
+    fit = prepare.FrameFit.compute((2560, 1080), (768, 432))
+    context = replace(
+        prepare.DISPLAY_CONTEXT,
+        gpu_upscaling=True,
+        window_size=(2560, 1080),
+        window_to_screen=fit.window_to_screen,
+    )
+    monkeypatch.setattr(prepare, "DISPLAY_CONTEXT", context)
+
+    mouse_input.process_event(Event(pg.MOUSEBUTTONDOWN, button=1, pos=(5, 540)))
+    assert not mouse_input.buttons[buttons.MOUSELEFT].pressed
+
+
 def test_drag_updates_position(mouse_input: PygameMouseInput):
     start_pos = (30, 40)
     mouse_input.process_event(

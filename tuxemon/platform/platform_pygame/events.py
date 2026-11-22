@@ -37,6 +37,11 @@ class PygameEventQueueHandler(EventQueueHandler):
 
     def process_events(self) -> Generator[PlayerInput, None, None]:
         for pg_event in pg.event.get():
+            if pg_event.type == pg.WINDOWSIZECHANGED:
+                from tuxemon import prepare
+
+                prepare.handle_window_resized((pg_event.x, pg_event.y))
+
             for input_handler in self.get_input_handlers():
                 input_handler.process_event(pg_event)
 
@@ -588,7 +593,7 @@ class PygameTouchOverlayInput(PygameEventHandler):
                 self._handle_finger_motion(finger_id, touch_pos)
 
     def _handle_finger_down(
-        self, finger_id: int, touch_pos: tuple[int, int]
+        self, finger_id: int, touch_pos: tuple[int, int] | None
     ) -> None:
         button = self.get_touched_button(touch_pos)
         if button is not None:
@@ -604,7 +609,7 @@ class PygameTouchOverlayInput(PygameEventHandler):
                 self.release(button)
 
     def _handle_finger_motion(
-        self, finger_id: int, touch_pos: tuple[int, int]
+        self, finger_id: int, touch_pos: tuple[int, int] | None
     ) -> None:
         if finger_id in self._active_touches:
             current_button = self._active_touches[finger_id]
@@ -621,8 +626,10 @@ class PygameTouchOverlayInput(PygameEventHandler):
                 else:
                     del self._active_touches[finger_id]
 
-    def get_touched_button(self, pos: tuple[int, int]) -> int | None:
+    def get_touched_button(self, pos: tuple[int, int] | None) -> int | None:
         """Determine which button was pressed based on position."""
+        if pos is None:
+            return None
         for name, rect in [
             (buttons.UP, self.ui.dpad.rect.up),
             (buttons.DOWN, self.ui.dpad.rect.down),
@@ -659,6 +666,7 @@ class PygameMouseInput(PygameEventHandler):
             from tuxemon import prepare
 
             pos = prepare.DISPLAY_CONTEXT.window_to_screen(pg_event.pos)
-            self.press(buttons.MOUSELEFT, pos)
+            if pos is not None:
+                self.press(buttons.MOUSELEFT, pos)
         elif pg_event.type == pg.MOUSEBUTTONUP:
             self.release(buttons.MOUSELEFT)

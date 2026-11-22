@@ -4949,6 +4949,9 @@ msgstr "GPU 3x"
 msgid "menu_upscaler_gpu_4x"
 msgstr "GPU 4x"
 
+msgid "menu_upscaler_gpu_custom"
+msgstr "GPU {scale}x"
+
 msgid "options_new_input_key0"
 msgstr "Press a key to set your new input key"
 

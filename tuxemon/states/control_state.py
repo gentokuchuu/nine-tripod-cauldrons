@@ -15,6 +15,7 @@ from tuxemon.menu.menu import PygameMenuState
 from tuxemon.menu.theme import get_theme
 from tuxemon.menu.transitions import PopInClamped
 from tuxemon.platform.const import buttons
+from tuxemon.prepare import gpu_render_scale
 from tuxemon.state.state import State
 
 if TYPE_CHECKING:
@@ -143,9 +144,15 @@ class ControlState(PygameMenuState):
         _config = self.client.config
         _upscaler_default = 0
         if _config.upscaler == "gpu":
-            for index, mode in enumerate(upscaler_modes):
-                if mode[2] == _config.gpu_render_scale:
-                    _upscaler_default = index
+            _current_scale = gpu_render_scale(_config.gpu_render_scale)
+            _listed = [mode[2] for mode in upscaler_modes]
+            if _current_scale not in _listed:
+                label = T.format(
+                    "menu_upscaler_gpu_custom", {"scale": _current_scale}
+                )
+                upscaler_modes.append((label.upper(), "gpu", _current_scale))
+                _listed.append(_current_scale)
+            _upscaler_default = _listed.index(_current_scale)
 
         def on_change_upscaler(value: Any, mode: str, scale: int) -> None:
             if mode == "gpu":

@@ -57,7 +57,10 @@ def main() -> None:
 
     platform.init()
 
+    from tuxemon.config import TuxemonConfig
     from tuxemon.user_config import CONFIG
+
+    TuxemonConfig.save_config = lambda self, *a, **kw: None
 
     display = CONFIG.config_model.display
     display.resolution_x = width
@@ -126,9 +129,12 @@ def main() -> None:
     config = CONFIG.copy()
     tuxemon_main.main(config=config, context=context)
 
-    mode = args.upscaler
-    if mode == "gpu":
-        mode += f" (render scale {context.scale})"
+    if context.gpu_upscaling:
+        mode = f"gpu (render scale {context.scale})"
+    elif args.upscaler == "gpu":
+        mode = "cpu (gpu requested, fell back)"
+    else:
+        mode = "cpu"
     internal = "x".join(str(v) for v in context.resolution)
     print(
         f"window {width}x{height} | {mode} | internal {internal} | "
