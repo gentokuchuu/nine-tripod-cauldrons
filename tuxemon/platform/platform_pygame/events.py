@@ -35,12 +35,21 @@ class PygameEventQueueHandler(EventQueueHandler):
     def __init__(self) -> None:
         super().__init__()
 
+    @staticmethod
+    def _handle_window_resize(pg_event: Event) -> None:
+        from tuxemon import prepare
+
+        prepare.handle_window_resized((pg_event.x, pg_event.y))
+
+    def sync_window_size(self) -> None:
+        from tuxemon import prepare
+
+        prepare.sync_gpu_display()
+
     def process_events(self) -> Generator[PlayerInput, None, None]:
         for pg_event in pg.event.get():
             if pg_event.type == pg.WINDOWSIZECHANGED:
-                from tuxemon import prepare
-
-                prepare.handle_window_resized((pg_event.x, pg_event.y))
+                self._handle_window_resize(pg_event)
 
             for input_handler in self.get_input_handlers():
                 input_handler.process_event(pg_event)

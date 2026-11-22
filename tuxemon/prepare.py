@@ -62,7 +62,7 @@ DEV_TOOLS = CONFIG.dev_tools
 
 def pygame_init() -> DisplayContext:
     """Initializes Pygame, display, translations, and databases."""
-    global DISPLAY_CONTEXT, _gpu_renderer
+    global DISPLAY_CONTEXT, _gpu_renderer, _gpu_window
 
     core_init()
 
@@ -86,6 +86,7 @@ def pygame_init() -> DisplayContext:
                 "GPU upscaler failed to start, falling back to CPU upscaler"
             )
             _gpu_renderer = None
+            _gpu_window = None
             pg.display.quit()
             pg.display.init()
             pg.display.set_caption(CONFIG.window_caption)
@@ -151,6 +152,7 @@ def gpu_render_scale(requested: int) -> int:
 
 
 _gpu_renderer: Any = None
+_gpu_window: Any = None
 
 
 def _apply_frame_fit(
@@ -179,8 +181,30 @@ def handle_window_resized(window_size: tuple[int, int]) -> None:
     )
 
 
+def sync_gpu_display() -> None:
+    if (
+        _gpu_renderer is None
+        or _gpu_window is None
+        or not DISPLAY_CONTEXT.gpu_upscaling
+    ):
+        return
+    window_w, window_h = _gpu_window.size
+    window_size = (window_w, window_h)
+    frame_size = DISPLAY_CONTEXT.resolution
+    fit = FrameFit.compute(window_size, frame_size)
+    expected_viewport = pg.Rect(
+        fit.offset_x, fit.offset_y, frame_size[0], frame_size[1]
+    )
+    if (
+        window_size != DISPLAY_CONTEXT.window_size
+        or tuple(_gpu_renderer.logical_size) != (0, 0)
+        or _gpu_renderer.get_viewport() != expected_viewport
+    ):
+        handle_window_resized(window_size)
+
+
 def _init_gpu_display(fullscreen: bool) -> DisplayContext:
-    global _gpu_renderer
+    global _gpu_renderer, _gpu_window
 
     from pygame._sdl2.video import Renderer, Window
 
@@ -212,6 +236,7 @@ def _init_gpu_display(fullscreen: bool) -> DisplayContext:
     window_w, window_h = window.size
     fit = _apply_frame_fit(renderer, (window_w, window_h), internal)
     _gpu_renderer = renderer
+    _gpu_window = window
 
     logger.info(
         f"GPU upscaler: drawing at {internal[0]}x{internal[1]}, "
