@@ -35,8 +35,22 @@ class PygameEventQueueHandler(EventQueueHandler):
     def __init__(self) -> None:
         super().__init__()
 
+    @staticmethod
+    def _handle_window_resize(pg_event: Event) -> None:
+        from tuxemon import prepare
+
+        prepare.handle_window_resized((pg_event.x, pg_event.y))
+
+    def sync_window_size(self) -> None:
+        from tuxemon import prepare
+
+        prepare.sync_gpu_display()
+
     def process_events(self) -> Generator[PlayerInput, None, None]:
         for pg_event in pg.event.get():
+            if pg_event.type == pg.WINDOWSIZECHANGED:
+                self._handle_window_resize(pg_event)
+
             for input_handler in self.get_input_handlers():
                 input_handler.process_event(pg_event)
 
@@ -565,10 +579,19 @@ class PygameTouchOverlayInput(PygameEventHandler):
         """Handles both mouse and finger touch events."""
 
         if input_event.type in (pg.FINGERDOWN, pg.FINGERUP, pg.FINGERMOTION):
-            touch_pos = (
-                int(input_event.x * self.resolution[0]),
-                int(input_event.y * self.resolution[1]),
-            )
+            from tuxemon import prepare
+
+            context = prepare.DISPLAY_CONTEXT
+            if context.gpu_upscaling:
+                window_w, window_h = context.window_size
+                touch_pos = context.window_to_screen(
+                    (input_event.x * window_w, input_event.y * window_h)
+                )
+            else:
+                touch_pos = (
+                    int(input_event.x * self.resolution[0]),
+                    int(input_event.y * self.resolution[1]),
+                )
             finger_id = input_event.fingerid
 
             if input_event.type == pg.FINGERDOWN:
@@ -579,7 +602,7 @@ class PygameTouchOverlayInput(PygameEventHandler):
                 self._handle_finger_motion(finger_id, touch_pos)
 
     def _handle_finger_down(
-        self, finger_id: int, touch_pos: tuple[int, int]
+        self, finger_id: int, touch_pos: tuple[int, int] | None
     ) -> None:
         button = self.get_touched_button(touch_pos)
         if button is not None:
@@ -595,7 +618,7 @@ class PygameTouchOverlayInput(PygameEventHandler):
                 self.release(button)
 
     def _handle_finger_motion(
-        self, finger_id: int, touch_pos: tuple[int, int]
+        self, finger_id: int, touch_pos: tuple[int, int] | None
     ) -> None:
         if finger_id in self._active_touches:
             current_button = self._active_touches[finger_id]
@@ -612,8 +635,10 @@ class PygameTouchOverlayInput(PygameEventHandler):
                 else:
                     del self._active_touches[finger_id]
 
-    def get_touched_button(self, pos: tuple[int, int]) -> int | None:
+    def get_touched_button(self, pos: tuple[int, int] | None) -> int | None:
         """Determine which button was pressed based on position."""
+        if pos is None:
+            return None
         for name, rect in [
             (buttons.UP, self.ui.dpad.rect.up),
             (buttons.DOWN, self.ui.dpad.rect.down),
@@ -647,6 +672,10 @@ class PygameMouseInput(PygameEventHandler):
 
     def process_event(self, pg_event: Event) -> None:
         if pg_event.type == pg.MOUSEBUTTONDOWN:
-            self.press(buttons.MOUSELEFT, pg_event.pos)
+            from tuxemon import prepare
+
+            pos = prepare.DISPLAY_CONTEXT.window_to_screen(pg_event.pos)
+            if pos is not None:
+                self.press(buttons.MOUSELEFT, pos)
         elif pg_event.type == pg.MOUSEBUTTONUP:
             self.release(buttons.MOUSELEFT)

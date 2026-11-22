@@ -15,6 +15,7 @@ from tuxemon.menu.menu import PygameMenuState
 from tuxemon.menu.theme import get_theme
 from tuxemon.menu.transitions import PopInClamped
 from tuxemon.platform.const import buttons
+from tuxemon.prepare import gpu_render_scale
 from tuxemon.state.state import State
 
 if TYPE_CHECKING:
@@ -131,6 +132,42 @@ class ControlState(PygameMenuState):
             default=_size_default,
             style="fancy",
             onchange=on_change_screen_size,
+            font_size=self.font_type.small,
+        )
+
+        upscaler_modes: list[tuple[Any, ...]] = [
+            (T.translate("menu_upscaler_cpu").upper(), "cpu", 0),
+            (T.translate("menu_upscaler_gpu_2x").upper(), "gpu", 2),
+            (T.translate("menu_upscaler_gpu_3x").upper(), "gpu", 3),
+            (T.translate("menu_upscaler_gpu_4x").upper(), "gpu", 4),
+        ]
+        _config = self.client.config
+        _upscaler_default = 0
+        if _config.upscaler == "gpu":
+            _current_scale = gpu_render_scale(_config.gpu_render_scale)
+            _listed = [mode[2] for mode in upscaler_modes]
+            if _current_scale not in _listed:
+                label = T.format(
+                    "menu_upscaler_gpu_custom", {"scale": _current_scale}
+                )
+                upscaler_modes.append((label.upper(), "gpu", _current_scale))
+                _listed.append(_current_scale)
+            _upscaler_default = _listed.index(_current_scale)
+
+        def on_change_upscaler(value: Any, mode: str, scale: int) -> None:
+            if mode == "gpu":
+                _config.update_attribute(
+                    "display", "gpu_render_scale", scale, save=False
+                )
+            _config.update_attribute("display", "upscaler", mode)
+
+        menu.add.selector(
+            title=T.translate("menu_upscaler").upper(),
+            items=upscaler_modes,
+            selector_id="upscaler",
+            default=_upscaler_default,
+            style="fancy",
+            onchange=on_change_upscaler,
             font_size=self.font_type.small,
         )
 

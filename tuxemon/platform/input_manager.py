@@ -83,6 +83,7 @@ class InputManager:
         """Processes the input events."""
         # Playback mode
         if self.recorder._is_playing_back:
+            self.event_queue.sync_window_size()
             self.event_queue.set_event_filter(lambda e: False)
             # Only yield playback events
             event = self.recorder.next_playback_event()
